@@ -1,0 +1,891 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Drop Calc · CH7S2</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700&family=Orbitron:wght@700;900&display=swap');
+
+:root {
+  --bg:     #0b0d14;
+  --panel:  #0f1219;
+  --card:   #141720;
+  --border: rgba(255,255,255,0.07);
+  --gold:   #F5C518;
+  --blue:   #3B9EFF;
+  --green:  #2ECC71;
+  --red:    #E74C3C;
+  --orange: #E67E22;
+  --text:   #E8EAF0;
+  --muted:  rgba(232,234,240,0.4);
+  --accent: #3B9EFF;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+
+html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 14px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── HEADER ── */
+.hdr {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 14px;
+  height: 44px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  z-index: 10;
+}
+.hdr-logo {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: 3px;
+  color: var(--gold);
+}
+.hdr-season {
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+.hdr-step {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: var(--blue);
+  text-transform: uppercase;
+  transition: all 0.3s;
+}
+
+/* ── MAP ── */
+.map-wrap {
+  position: relative;
+  flex: 0 0 54vh;
+  background: #080c18;
+  overflow: hidden;
+  cursor: crosshair;
+  min-height: 240px;
+}
+#mapCanvas {
+  position: absolute;
+  inset: 0;
+  display: block;
+  touch-action: none;
+}
+
+/* Legend */
+.legend {
+  position: absolute;
+  top: 8px; right: 8px;
+  background: rgba(11,13,20,0.88);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 9px;
+  letter-spacing: 1px;
+  line-height: 2;
+  pointer-events: none;
+}
+.leg { display: flex; align-items: center; gap: 5px; color: var(--muted); }
+.leg-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+
+/* Hint overlay */
+.hint {
+  position: absolute; top: 50%; left: 50%;
+  transform: translate(-50%,-50%);
+  text-align: center; pointer-events: none; transition: opacity 0.3s;
+}
+.hint.gone { opacity: 0; }
+.hint-icon { font-size: 28px; margin-bottom: 6px; animation: bob 2s ease-in-out infinite; }
+@keyframes bob { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-4px)} }
+.hint-title { font-family:'Orbitron',sans-serif; font-size:10px; letter-spacing:3px; color:var(--gold); }
+.hint-sub { font-size:11px; color:var(--muted); margin-top:3px; }
+
+/* Reset btn */
+.btn-reset {
+  position: absolute; bottom: 8px; right: 8px;
+  background: rgba(231,76,60,0.12);
+  border: 1px solid rgba(231,76,60,0.25);
+  border-radius: 5px;
+  color: var(--red);
+  font-family: 'Barlow Condensed',sans-serif;
+  font-size: 11px; font-weight: 700; letter-spacing: 2px;
+  padding: 5px 10px; cursor: pointer;
+  display: none; transition: background 0.2s;
+}
+.btn-reset.show { display: block; }
+.btn-reset:hover { background: rgba(231,76,60,0.25); }
+
+/* Tooltip */
+#tooltip {
+  position: absolute;
+  background: rgba(11,13,20,0.95);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 4px 9px;
+  font-size: 11px; font-weight: 700; letter-spacing: 1px;
+  color: var(--gold); pointer-events: none;
+  white-space: nowrap; display: none; z-index: 20;
+  transform: translate(-50%, -130%);
+}
+
+/* ── PANEL ── */
+.panel {
+  flex: 1;
+  background: var(--panel);
+  border-top: 1px solid var(--border);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Settings row */
+.settings {
+  display: flex; gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto; scrollbar-width: none;
+}
+.settings::-webkit-scrollbar { display: none; }
+.sgroup { display: flex; flex-direction: column; gap: 3px; flex-shrink: 0; }
+.sgroup label { font-size: 9px; letter-spacing: 1.5px; color: var(--muted); text-transform: uppercase; }
+.sgroup select {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+  font-family: 'Barlow Condensed',sans-serif;
+  font-size: 13px; font-weight: 600;
+  padding: 5px 22px 5px 8px;
+  outline: none; cursor: pointer;
+  -webkit-appearance: none; appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath fill='%233B9EFF' d='M5 6L0 0h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 6px center;
+  min-width: 100px;
+}
+.sgroup select option { background: #1a1d2e; }
+
+/* Empty */
+.empty {
+  padding: 28px 16px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 13px; letter-spacing: 1px;
+}
+.empty-icon { font-size: 22px; margin-bottom: 8px; opacity: 0.4; }
+
+/* Status */
+.status-row { padding: 10px 12px 0; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.pill {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 4px 10px; border-radius: 20px;
+  font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
+}
+.pill-safe   { background:rgba(46,204,113,0.1); color:var(--green); border:1px solid rgba(46,204,113,0.25); }
+.pill-warn   { background:rgba(230,126,34,0.1); color:var(--orange); border:1px solid rgba(230,126,34,0.25); }
+.pill-danger { background:rgba(231,76,60,0.1);  color:var(--red);    border:1px solid rgba(231,76,60,0.25); }
+.nearest { font-size:11px; color:var(--muted); }
+
+/* Stats grid */
+.stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1px;
+  background: var(--border);
+  margin-top: 10px;
+}
+.stat {
+  background: var(--panel);
+  padding: 10px 8px;
+  text-align: center;
+  animation: fadeUp 0.3s ease both;
+}
+.stat.hl { background: rgba(245,197,24,0.05); }
+@keyframes fadeUp { from{opacity:0;transform:translateY(5px)} to{opacity:1;transform:translateY(0)} }
+.stat:nth-child(1){animation-delay:.05s}
+.stat:nth-child(2){animation-delay:.1s}
+.stat:nth-child(3){animation-delay:.15s}
+.stat:nth-child(4){animation-delay:.2s}
+.stat:nth-child(5){animation-delay:.25s}
+.stat:nth-child(6){animation-delay:.3s}
+.stat-lbl { font-size:8px; letter-spacing:1.5px; color:var(--muted); text-transform:uppercase; margin-bottom:3px; }
+.stat-val { font-family:'Orbitron',sans-serif; font-size:18px; font-weight:700; color:var(--gold); }
+.stat-val.good { color: var(--green); }
+.stat-val.bad  { color: var(--red); }
+.stat-unit { font-size:9px; color:var(--muted); margin-top:1px; }
+
+/* Phase bars */
+.phases { padding: 10px 12px; }
+.phase-title {
+  font-family:'Orbitron',sans-serif;
+  font-size:9px; letter-spacing:2px; color:var(--blue);
+  text-transform:uppercase; margin-bottom:8px;
+}
+.phase-row { display:flex; align-items:center; gap:8px; margin-bottom:6px; }
+.phase-lbl { width:75px; font-size:10px; letter-spacing:1px; color:var(--muted); }
+.bar-wrap { flex:1; height:5px; background:rgba(255,255,255,0.05); border-radius:3px; overflow:hidden; }
+.bar { height:100%; border-radius:3px; transition: width 0.7s cubic-bezier(0.16,1,0.3,1); }
+.phase-t { width:38px; text-align:right; font-family:'Orbitron',sans-serif; font-size:10px; color:var(--text); }
+
+/* Dive angle indicator */
+.dive-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 12px;
+  border-top: 1px solid var(--border);
+}
+.dive-icon { font-size: 20px; }
+.dive-info { flex: 1; }
+.dive-label { font-size: 9px; letter-spacing: 1.5px; color: var(--muted); text-transform: uppercase; }
+.dive-val { font-family:'Orbitron',sans-serif; font-size:15px; color: var(--gold); font-weight:700; }
+
+/* Tactical tip */
+.tip {
+  margin: 8px 12px 12px;
+  background: rgba(59,158,255,0.05);
+  border: 1px solid rgba(59,158,255,0.12);
+  border-radius: 6px;
+  padding: 9px 11px;
+  font-size: 12px; line-height: 1.5;
+  color: rgba(232,234,240,0.7);
+}
+.tip strong { color: var(--blue); }
+
+/* Footer physics info */
+.physics-info {
+  padding: 5px 12px 10px;
+  font-size: 9px; letter-spacing: 1px;
+  color: rgba(232,234,240,0.2);
+  text-transform: uppercase;
+}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <div class="hdr-logo">DROP CALC</div>
+  <div class="hdr-season">CH7 S2 · Showdown</div>
+  <div class="hdr-step" id="hdrStep">Stap 1: Bus Start</div>
+</div>
+
+<div class="map-wrap" id="mapWrap">
+  <canvas id="mapCanvas"></canvas>
+
+  <div class="hint" id="hint">
+    <div class="hint-icon">🚌</div>
+    <div class="hint-title">Tik voor Bus Start</div>
+    <div class="hint-sub">Dan Bus Einde → Drop locatie</div>
+  </div>
+
+  <div class="legend">
+    <div class="leg"><div class="leg-dot" style="background:#F5C518"></div>Bus route</div>
+    <div class="leg"><div class="leg-dot" style="background:#3B9EFF"></div>Deploy punt (G)</div>
+    <div class="leg"><div class="leg-dot" style="background:#2ECC71"></div>Drop locatie</div>
+    <div class="leg"><div class="leg-dot" style="background:#F5C518;opacity:.6"></div>Spring punt (J)</div>
+  </div>
+
+  <button class="btn-reset" id="btnReset" onclick="resetAll()">↺ Reset</button>
+  <div id="tooltip"></div>
+</div>
+
+<div class="panel">
+  <div class="settings">
+    <div class="sgroup">
+      <label>Drop Stijl</label>
+      <select id="styleSelect" onchange="recalc()">
+        <option value="diagonal" selected>Diagonaal</option>
+        <option value="straight">Recht omlaag</option>
+        <option value="max">Max afstand</option>
+      </select>
+    </div>
+    <div class="sgroup">
+      <label>Spelers</label>
+      <select id="playersSelect" onchange="recalc()">
+        <option value="solo" selected>Solo</option>
+        <option value="duo">Duo</option>
+        <option value="squad">Squad</option>
+      </select>
+    </div>
+    <div class="sgroup">
+      <label>Hoogte</label>
+      <select id="altSelect" onchange="recalc()">
+        <option value="800">800m</option>
+        <option value="1000" selected>1000m</option>
+        <option value="1200">1200m</option>
+      </select>
+    </div>
+  </div>
+  <div id="panelContent">
+    <div class="empty">
+      <div class="empty-icon">🗺️</div>
+      Tik op de map om te beginnen
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════
+// PHYSICS — multi-source verified
+// ═══════════════════════════════════════
+// Bus speed: technik-consulting.eu measured 100 m/s (360 km/h) in-game
+// Reddit measurement: 75 m/s — difference likely due to Chapter version
+// We use 100 m/s as it's from direct in-game measurement with speed meter
+const BUS_MS   = 100;
+// Bus altitude: YouTube measurement "How high is the Battle Bus" = 832m
+const BUS_ALT  = 832;
+// Map: Golden Coast is smaller than Ch6 — ~3000m wide
+const MAP_M    = 3000;
+// Freefall: player dives diagonally at ~55 m/s horiz, 75 m/s vert
+// (technik-consulting measured bus=100m/s, other speeds proportionally lower)
+const FF_HORIZ = 55;
+const FF_VERT  = 75;
+// Glider deploys at 100m above ground — Fortnite Wiki + Copilot confirmed
+const DEPLOY_H = 100;
+// Glide speed ~25 m/s horizontal (technik-consulting: "v_z between 20-32, expect 25")
+const GL_HORIZ = 25;
+const GL_VERT  = 8;
+
+// ═══════════════════════════════════════
+// POIs — Chapter 7 Season 2 Showdown (verified from fortnite.gg screenshot)
+// ═══════════════════════════════════════
+const POIS = [
+  { name:"Frigid Fortress",      x:0.42, y:0.18, hot:true,  type:'ice'    },
+  { name:"Latte Landing",        x:0.55, y:0.12, hot:false, type:'normal' },
+  { name:"Painted Palms",        x:0.65, y:0.22, hot:false, type:'normal' },
+  { name:"Wonkeeland",           x:0.28, y:0.28, hot:false, type:'normal' },
+  { name:"Sandy Strip",          x:0.62, y:0.38, hot:false, type:'normal' },
+  { name:"Fore Fields",          x:0.74, y:0.40, hot:false, type:'normal' },
+  { name:"Squibbly Shores",      x:0.14, y:0.48, hot:false, type:'zero'   },
+  { name:"Dark Dominion",        x:0.38, y:0.50, hot:true,  type:'dark'   },
+  { name:"Humble Hills",         x:0.22, y:0.58, hot:false, type:'normal' },
+  { name:"Builder's Barracks",   x:0.72, y:0.60, hot:false, type:'normal' },
+  { name:"Sus Studios",          x:0.48, y:0.65, hot:false, type:'normal' },
+  { name:"New Sanctuary",        x:0.58, y:0.70, hot:true,  type:'seven'  },
+  { name:"Ripped Tides",         x:0.14, y:0.72, hot:false, type:'normal' },
+  { name:"Battlewood Boulevard", x:0.34, y:0.78, hot:false, type:'normal' },
+];
+
+function poiColor(poi) {
+  if (!poi.hot) return 'rgba(200,160,80,0.5)';
+  return { ice:'#3B9EFF', seven:'#2ECC71', dark:'#8B44FF', zero:'#9B44FF' }[poi.type] || '#E67E22';
+}
+
+// ═══════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════
+// phase: 0=bus start, 1=bus end, 2=drop, 3=done
+let state = { phase:0, busA:null, busB:null, drop:null, deployPt:null };
+let canvasW=0, canvasH=0, animFrame=0, animating=false;
+
+const canvas  = document.getElementById('mapCanvas');
+const ctx     = canvas.getContext('2d');
+const mapWrap = document.getElementById('mapWrap');
+const hint    = document.getElementById('hint');
+const tooltip = document.getElementById('tooltip');
+
+// ═══════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════
+const toC  = (nx,ny)  => ({ x:nx*canvasW, y:ny*canvasH });
+const toN  = (cx,cy)  => ({ x:cx/canvasW, y:cy/canvasH });
+const cdist = (a,b)   => Math.sqrt((a.x-b.x)**2+(a.y-b.y)**2);
+const mdist = (a,b)   => Math.sqrt(((a.x-b.x)*MAP_M)**2+((a.y-b.y)*MAP_M)**2);
+
+function projectT(p, a, b) {
+  const dx=b.x-a.x, dy=b.y-a.y, l2=dx*dx+dy*dy;
+  if (l2===0) return 0;
+  return Math.max(0, Math.min(1, ((p.x-a.x)*dx+(p.y-a.y)*dy)/l2));
+}
+
+// ═══════════════════════════════════════
+// PHYSICS CALC
+// ═══════════════════════════════════════
+function calcDrop() {
+  if (!state.busA || !state.busB || !state.drop) return null;
+
+  const altMod = { '800':0.8, '1000':1.0, '1200':1.2 }[document.getElementById('altSelect').value] || 1;
+  const style  = document.getElementById('styleSelect').value;
+  const busAlt = BUS_ALT * altMod;
+
+  // Freefall horizontal speed by style
+  const ffH = style==='straight' ? 18 : style==='max' ? 0  : FF_HORIZ;
+  const glH = style==='max'      ? GL_HORIZ*1.35 : style==='straight' ? GL_HORIZ*0.55 : GL_HORIZ;
+
+  // Freefall: drop from busAlt to DEPLOY_H
+  const ffAlt  = busAlt - DEPLOY_H;
+  const ffTime = ffAlt / FF_VERT;          // seconds
+  const ffHCov = ffTime * ffH;             // horizontal meters covered
+
+  // Glide: descend from DEPLOY_H to ground
+  const glTime = DEPLOY_H / GL_VERT;       // seconds
+  const glHCov = glTime * glH;             // horizontal meters
+
+  const maxReach = ffHCov + glHCov;
+
+  // Jump point: project drop perpendicularly onto bus route
+  const t       = projectT(state.drop, state.busA, state.busB);
+  const jumpNorm = { x: state.busA.x + t*(state.busB.x-state.busA.x), y: state.busA.y + t*(state.busB.y-state.busA.y) };
+  const horizM  = mdist(jumpNorm, state.drop);
+
+  // Deploy point: midpoint between jump and drop at correct proportion
+  // Freefall covers ffHCov meters, then glide the rest
+  // Deploy point is where glider opens = ffHCov from jump toward drop
+  const frac    = horizM > 0 ? Math.min(ffHCov / horizM, 1) : 0;
+  const deployNorm = {
+    x: jumpNorm.x + frac*(state.drop.x - jumpNorm.x),
+    y: jumpNorm.y + frac*(state.drop.y - jumpNorm.y)
+  };
+
+  // Timing
+  const busLen     = mdist(state.busA, state.busB);
+  const distToJump = t * busLen;
+  const busTimeSec = distToJump / BUS_MS;
+
+  // Actual drop time (only the glide time needed for this specific distance)
+  const canReach     = horizM <= maxReach;
+  const horizAfterFF = Math.max(0, horizM - ffHCov);
+  const glideActual  = canReach ? (horizAfterFF / glH) : glTime;
+  const dropTime     = ffTime + glideActual;
+
+  // Dive angle (degrees from horizontal) — steeper = more freefall coverage
+  const diveAngle = Math.round(Math.atan2(FF_VERT, ffH) * 180 / Math.PI);
+
+  // Nearest POI
+  let nearest=null, nearestDist=9999;
+  POIS.forEach(p => { const d=mdist(state.drop,p); if(d<nearestDist){nearestDist=d;nearest=p;} });
+
+  const isHot    = nearest && nearestDist<300 && nearest.hot;
+  const isMid    = nearest && nearestDist<500;
+  const dropType = isHot?'hot': isMid?'mid':'cold';
+
+  return {
+    t, jumpNorm, deployNorm, horizM, maxReach, canReach,
+    busTimeSec, ffTime, glideActual, dropTime, diveAngle,
+    nearest, nearestDist, dropType, style,
+    ffPct: Math.round(ffTime/dropTime*100)
+  };
+}
+
+// ═══════════════════════════════════════
+// DRAW
+// ═══════════════════════════════════════
+function startAnim() {
+  if (animating) return; animating = true;
+  (function loop(){ animFrame++; draw(); if(animating) requestAnimationFrame(loop); })();
+}
+function resize() {
+  canvasW = canvas.width  = mapWrap.offsetWidth;
+  canvasH = canvas.height = mapWrap.offsetHeight;
+  draw();
+}
+window.addEventListener('resize', resize);
+requestAnimationFrame(resize);
+
+function draw() {
+  ctx.clearRect(0,0,canvasW,canvasH);
+  drawBg();
+
+  // Grid
+  ctx.strokeStyle='rgba(255,255,255,0.02)'; ctx.lineWidth=1;
+  for(let i=0;i<=10;i++){
+    ctx.beginPath();ctx.moveTo(i/10*canvasW,0);ctx.lineTo(i/10*canvasW,canvasH);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(0,i/10*canvasH);ctx.lineTo(canvasW,i/10*canvasH);ctx.stroke();
+  }
+
+  // Max reach ring
+  if(state.drop && state.busA && state.busB){
+    const r = calcDrop();
+    if(r){
+      const rNorm = r.maxReach / MAP_M;
+      const d = toC(state.drop.x,state.drop.y);
+      const rPx = rNorm * canvasW;
+      ctx.beginPath(); ctx.arc(d.x,d.y,rPx,0,Math.PI*2);
+      ctx.strokeStyle = r.canReach ? 'rgba(46,204,113,0.2)' : 'rgba(231,76,60,0.2)';
+      ctx.setLineDash([4,4]); ctx.lineWidth=1; ctx.stroke(); ctx.setLineDash([]);
+    }
+  }
+
+  // POIs — only show when real map is NOT loaded (would conflict with actual map)
+  if (!mapImgLoaded) {
+    POIS.forEach(poi=>{
+      const c = toC(poi.x,poi.y);
+      const col = poiColor(poi);
+      if(poi.hot){
+        const p = 1+0.25*Math.sin(animFrame*0.05);
+        ctx.beginPath(); ctx.arc(c.x,c.y,11*p,0,Math.PI*2);
+        ctx.strokeStyle = col+'33'; ctx.lineWidth=1.5; ctx.stroke();
+      }
+      ctx.beginPath(); ctx.arc(c.x,c.y,poi.hot?5:3,0,Math.PI*2);
+      ctx.fillStyle = col; ctx.fill();
+      ctx.save();
+      ctx.font = (poi.hot?'bold ':'')+' 8px Barlow Condensed,sans-serif';
+      ctx.fillStyle = poi.hot ? col : 'rgba(232,234,240,0.3)';
+      ctx.textAlign='center';
+      ctx.shadowColor='rgba(0,0,0,0.9)'; ctx.shadowBlur=4;
+      ctx.fillText(poi.name, c.x, c.y-(poi.hot?12:9));
+      ctx.restore();
+    });
+  }
+
+  if(!state.busA){ return; }
+
+  const a = toC(state.busA.x,state.busA.y);
+
+  if(state.busB){
+    const b   = toC(state.busB.x,state.busB.y);
+    const ang = Math.atan2(b.y-a.y,b.x-a.x);
+    const busT = (animFrame*0.003)%1;
+    const bx = a.x+busT*(b.x-a.x), by = a.y+busT*(b.y-a.y);
+
+    // Bus trail
+    const tg = ctx.createLinearGradient(a.x,a.y,b.x,b.y);
+    tg.addColorStop(0,'rgba(245,197,24,0)');
+    tg.addColorStop(Math.max(0,busT-0.12),'rgba(245,197,24,0)');
+    tg.addColorStop(busT,'rgba(245,197,24,0.5)');
+    tg.addColorStop(1,'rgba(245,197,24,0.08)');
+    ctx.setLineDash([7,5]); ctx.strokeStyle=tg; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke(); ctx.setLineDash([]);
+
+    // Arrow
+    ctx.save(); ctx.translate(b.x,b.y); ctx.rotate(ang);
+    ctx.fillStyle='rgba(245,197,24,0.6)';
+    ctx.beginPath(); ctx.moveTo(9,0); ctx.lineTo(-4,-4); ctx.lineTo(-4,4); ctx.closePath(); ctx.fill();
+    ctx.restore();
+
+    // Animated bus 🚌
+    ctx.save(); ctx.translate(bx,by); ctx.rotate(ang);
+    ctx.font='14px serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.shadowColor='rgba(245,197,24,0.7)'; ctx.shadowBlur=8;
+    ctx.fillText('🚌',0,0); ctx.restore();
+
+    if(state.drop){
+      const r = calcDrop();
+      if(!r) return;
+      const d   = toC(state.drop.x,state.drop.y);
+      const j   = toC(r.jumpNorm.x,r.jumpNorm.y);
+      const dep = toC(r.deployNorm.x,r.deployNorm.y);
+
+      // 3-segment path: Jump → freefall arc → Deploy → glide line → Drop
+      // Freefall segment — thicker, bright gold
+      ctx.save();
+      const mx1 = (j.x+dep.x)/2, my1 = (j.y+dep.y)/2 + Math.abs(dep.x-j.x)*0.2;
+      ctx.beginPath(); ctx.moveTo(j.x,j.y); ctx.quadraticCurveTo(mx1,my1,dep.x,dep.y);
+      ctx.strokeStyle='rgba(245,197,24,0.9)'; ctx.lineWidth=3; ctx.setLineDash([5,3]); ctx.stroke();
+      ctx.restore();
+
+      // Glide segment — thicker, bright blue
+      ctx.beginPath(); ctx.moveTo(dep.x,dep.y); ctx.lineTo(d.x,d.y);
+      ctx.strokeStyle='rgba(59,158,255,0.95)'; ctx.lineWidth=3; ctx.setLineDash([6,3]); ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Distance label on glide segment — pill background
+      const midGX=(dep.x+d.x)/2, midGY=(dep.y+d.y)/2-10;
+      ctx.save();
+      const distTxt = Math.round(r.horizM)+'m';
+      ctx.font='bold 10px Barlow Condensed,sans-serif';
+      const tw = ctx.measureText(distTxt).width;
+      ctx.fillStyle='rgba(8,12,24,0.75)';
+      ctx.beginPath(); ctx.roundRect(midGX-tw/2-4, midGY-10, tw+8, 14, 4); ctx.fill();
+      ctx.fillStyle='#3B9EFF'; ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText(distTxt, midGX, midGY-3); ctx.restore();
+
+      // Jump point J (gold, pulsing)
+      const jp = 1+0.2*Math.sin(animFrame*0.1);
+      ctx.beginPath(); ctx.arc(j.x,j.y,7*jp,0,Math.PI*2); ctx.fillStyle='rgba(245,197,24,0.15)'; ctx.fill();
+      ctx.beginPath(); ctx.arc(j.x,j.y,5,0,Math.PI*2); ctx.fillStyle='#F5C518'; ctx.fill();
+      ctx.save(); ctx.font='bold 7px Orbitron,sans-serif'; ctx.fillStyle='#000';
+      ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('J',j.x,j.y); ctx.restore();
+
+      // Deploy point G — larger, animated pulse, pill label
+      const dp2 = 1+0.3*Math.sin(animFrame*0.08);
+      ctx.beginPath(); ctx.arc(dep.x,dep.y,14*dp2,0,Math.PI*2);
+      ctx.strokeStyle='rgba(59,158,255,0.35)'; ctx.lineWidth=2; ctx.stroke();
+      ctx.save(); ctx.translate(dep.x,dep.y); ctx.rotate(Math.PI/4);
+      ctx.beginPath(); ctx.rect(-7,-7,14,14);
+      ctx.fillStyle='#3B9EFF'; ctx.fill();
+      ctx.restore();
+      ctx.save(); ctx.font='bold 8px Orbitron,sans-serif'; ctx.fillStyle='#fff';
+      ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('G',dep.x,dep.y); ctx.restore();
+      // DEPLOY pill label
+      ctx.save();
+      const deplTxt = '🪂 DEPLOY';
+      ctx.font='bold 11px Barlow Condensed,sans-serif';
+      const dw = ctx.measureText(deplTxt).width;
+      ctx.fillStyle='rgba(59,158,255,0.92)';
+      ctx.beginPath(); ctx.roundRect(dep.x-dw/2-6, dep.y-28, dw+12, 17, 5); ctx.fill();
+      ctx.fillStyle='#fff'; ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText(deplTxt, dep.x, dep.y-19); ctx.restore();
+
+      // Drop target — crosshair
+      ctx.strokeStyle='#2ECC71'; ctx.lineWidth=2.5;
+      ctx.beginPath(); ctx.arc(d.x,d.y,9,0,Math.PI*2); ctx.stroke();
+      ctx.strokeStyle='rgba(46,204,113,0.5)'; ctx.lineWidth=1.5;
+      ctx.beginPath(); ctx.moveTo(d.x-15,d.y); ctx.lineTo(d.x+15,d.y); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(d.x,d.y-15); ctx.lineTo(d.x,d.y+15); ctx.stroke();
+      ctx.beginPath(); ctx.arc(d.x,d.y,3,0,Math.PI*2); ctx.fillStyle='#2ECC71'; ctx.fill();
+
+      // Nearest POI connector
+      if(r.nearest && r.nearestDist < MAP_M*0.14){
+        const pc = toC(r.nearest.x,r.nearest.y);
+        ctx.beginPath(); ctx.moveTo(d.x,d.y); ctx.lineTo(pc.x,pc.y);
+        ctx.strokeStyle='rgba(200,160,80,0.25)'; ctx.lineWidth=1;
+        ctx.setLineDash([2,4]); ctx.stroke(); ctx.setLineDash([]);
+      }
+    }
+    // Bus end dot
+    ctx.beginPath(); ctx.arc(b.x,b.y,3,0,Math.PI*2); ctx.fillStyle='rgba(245,197,24,0.4)'; ctx.fill();
+  }
+
+  // Bus start 🚌
+  if(!state.busB){
+    ctx.font='14px serif'; ctx.textAlign='center';
+    ctx.fillText('🚌',a.x,a.y+5);
+  }
+}
+
+// ═══════════════════════════════════════
+// MAP IMAGE — fortnite-api.com
+// ═══════════════════════════════════════
+let mapImg = null;
+let mapImgLoaded = false;
+
+async function loadMapImage() {
+  try {
+    // Fetch the map API to get current image URL (auto-updates each season)
+    const res = await fetch('https://fortnite-api.com/v1/map');
+    if (!res.ok) throw new Error('API error');
+    const data = await res.json();
+    const url = data?.data?.images?.blank;
+    if (!url) throw new Error('No image URL');
+    await loadImg(url);
+  } catch {
+    // Fallback: try direct known URL pattern
+    try {
+      await loadImg('https://fortnite-api.com/images/map.png');
+    } catch {
+      // Silent fail — map draws without background image
+    }
+  }
+}
+
+function loadImg(url) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => { mapImg = img; mapImgLoaded = true; resolve(); };
+    img.onerror = reject;
+    img.src = url;
+  });
+}
+
+// Start loading immediately
+loadMapImage().then(() => { if(mapImgLoaded) draw(); });
+
+function drawBg() {
+  // Draw map image if loaded (semi-transparent)
+  if (mapImgLoaded && mapImg) {
+    ctx.save();
+    ctx.globalAlpha = 0.65; // much more visible
+    ctx.drawImage(mapImg, 0, 0, canvasW, canvasH);
+    ctx.restore();
+    // Light dark overlay — just enough to keep routes readable
+    ctx.fillStyle = 'rgba(8,12,24,0.30)';
+    ctx.fillRect(0, 0, canvasW, canvasH);
+  } else {
+    // Fallback: stylized biome zones while loading
+    const zones=[
+      {x:.25,y:.10,rx:.22,ry:.13,c:'rgba(140,200,240,0.07)'},
+      {x:.82,y:.56,rx:.14,ry:.22,c:'rgba(200,160,60,0.06)'},
+      {x:.19,y:.52,rx:.05,ry:.05,c:'rgba(100,50,200,0.18)'},
+      {x:.55,y:.55,rx:.09,ry:.08,c:'rgba(40,0,60,0.13)'},
+      {x:.70,y:.72,rx:.07,ry:.07,c:'rgba(0,180,100,0.06)'},
+      {x:.04,y:.50,rx:.05,ry:.34,c:'rgba(20,60,140,0.10)'},
+      {x:.60,y:.38,rx:.11,ry:.09,c:'rgba(30,80,30,0.06)'},
+    ];
+    zones.forEach(z=>{
+      ctx.save(); ctx.beginPath();
+      ctx.ellipse(z.x*canvasW,z.y*canvasH,z.rx*canvasW,z.ry*canvasH,0,0,Math.PI*2);
+      ctx.fillStyle=z.c; ctx.fill(); ctx.restore();
+    });
+  }
+  // Watermark
+  ctx.save();
+  ctx.font='bold 9px Barlow Condensed,sans-serif';
+  ctx.fillStyle='rgba(245,197,24,0.04)';
+  ctx.textAlign='center';
+  ctx.translate(canvasW/2,canvasH/2);
+  ctx.rotate(-Math.PI/6);
+  ctx.fillText('CHAPTER 7 · SEASON 2 · SHOWDOWN · GOLDEN COAST',0,0);
+  ctx.restore();
+}
+
+// ═══════════════════════════════════════
+// INPUT
+// ═══════════════════════════════════════
+function getPos(e){
+  const r=canvas.getBoundingClientRect();
+  // Touch events
+  if(e.touches && e.touches.length>0)
+    return {x:e.touches[0].clientX-r.left, y:e.touches[0].clientY-r.top};
+  if(e.changedTouches && e.changedTouches.length>0)
+    return {x:e.changedTouches[0].clientX-r.left, y:e.changedTouches[0].clientY-r.top};
+  // Mouse/pointer
+  return {x:e.clientX-r.left, y:e.clientY-r.top};
+}
+
+function handleTap(e){
+  e.preventDefault();
+  const pos=getPos(e);
+  const n=toN(pos.x,pos.y);
+
+  if(state.phase===0){
+    state.busA=n; state.phase=1;
+    hint.classList.add('gone');
+    startAnim(); updateHdr(); draw();
+  } else if(state.phase===1){
+    if(cdist(toC(n.x,n.y),toC(state.busA.x,state.busA.y))<5) return;
+    state.busB=n; state.phase=2;
+    updateHdr(); draw();
+  } else if(state.phase===2){
+    state.drop=n; state.phase=3;
+    document.getElementById('btnReset').classList.add('show');
+    updateHdr(); draw(); recalc();
+  } else {
+    state.drop=n; draw(); recalc();
+  }
+}
+
+canvas.addEventListener('click', handleTap);
+canvas.addEventListener('touchstart', e=>{e.preventDefault();handleTap(e);},{passive:false});
+
+canvas.addEventListener('mousemove', e=>{
+  const r=canvas.getBoundingClientRect();
+  const mx=e.clientX-r.left, my=e.clientY-r.top;
+  let found=null;
+  for(const p of POIS){
+    const c=toC(p.x,p.y);
+    if(Math.sqrt((mx-c.x)**2+(my-c.y)**2)<14){found=p;break;}
+  }
+  if(found){
+    tooltip.style.display='block';
+    tooltip.style.left=mx+'px'; tooltip.style.top=my+'px';
+    tooltip.textContent=found.name+(found.hot?' 🔥':'');
+  } else { tooltip.style.display='none'; }
+});
+
+function updateHdr(){
+  const steps=['Stap 1: Bus Start','Stap 2: Bus Einde','Stap 3: Drop Locatie','Drop berekend ✓'];
+  document.getElementById('hdrStep').textContent=steps[state.phase]||steps[3];
+}
+
+function resetAll(){
+  state={phase:0,busA:null,busB:null,drop:null,deployPt:null};
+  hint.classList.remove('gone');
+  document.getElementById('btnReset').classList.remove('show');
+  document.getElementById('panelContent').innerHTML='<div class="empty"><div class="empty-icon">🗺️</div>Tik op de map om te beginnen</div>';
+  updateHdr(); draw();
+}
+
+// ═══════════════════════════════════════
+// RECALC + RENDER
+// ═══════════════════════════════════════
+function recalc(){
+  if(state.phase<3) return;
+  const r=calcDrop();
+  if(!r) return;
+
+  const players=document.getElementById('playersSelect').value;
+
+  const advice={
+    hot:  {pill:'danger', label:'🔥 HOT DROP',  tip:`<strong>Hard drop!</strong> Duik steil, wapen binnen 5s. ${players==='squad'?'Squad: splits en dek alle verdiepingen.':'Solo: pak direct hoge grond na landing.'}`},
+    mid:  {pill:'warn',   label:'⚡ MID DROP',   tip:`<strong>Gemiddelde competitie.</strong> Houd je glider laag. Ga diagonaal op je target, je hebt ~8s voor de eerste gevechten.`},
+    cold: {pill:'safe',   label:'✅ COLD DROP',  tip:`<strong>Rustige landing.</strong> Land op daken. Spring vroeg voor max bereik. Je hebt 30-60s vrij loot voor rotaties aankomen.`},
+  }[r.dropType];
+
+  const diveLabel = r.style==='straight'?'Steil (90°)':r.style==='max'?'Horizontaal (30°)':`Diagonaal (${r.diveAngle}°)`;
+
+  document.getElementById('panelContent').innerHTML=`
+    <div class="status-row">
+      <span class="pill pill-${advice.pill}">${advice.label}</span>
+      ${r.nearest?`<span class="nearest">${r.nearest.name} · ${Math.round(r.nearestDist)}m</span>`:''}
+    </div>
+
+    <div class="stats">
+      <div class="stat hl">
+        <div class="stat-lbl">Spring na</div>
+        <div class="stat-val">${r.busTimeSec.toFixed(0)}</div>
+        <div class="stat-unit">sec na bus start</div>
+      </div>
+      <div class="stat">
+        <div class="stat-lbl">Totale val</div>
+        <div class="stat-val">${r.dropTime.toFixed(1)}</div>
+        <div class="stat-unit">seconden</div>
+      </div>
+      <div class="stat">
+        <div class="stat-lbl">Max bereik</div>
+        <div class="stat-val ${r.canReach?'good':'bad'}">${Math.round(r.maxReach)}</div>
+        <div class="stat-unit">${r.canReach?'✓ bereikbaar':'✗ te ver'}</div>
+      </div>
+      <div class="stat">
+        <div class="stat-lbl">Afstand bus</div>
+        <div class="stat-val">${Math.round(r.horizM)}</div>
+        <div class="stat-unit">meter</div>
+      </div>
+      <div class="stat">
+        <div class="stat-lbl">Vrije val</div>
+        <div class="stat-val">${r.ffTime.toFixed(1)}</div>
+        <div class="stat-unit">seconden</div>
+      </div>
+      <div class="stat">
+        <div class="stat-lbl">Glijden</div>
+        <div class="stat-val">${r.glideActual.toFixed(1)}</div>
+        <div class="stat-unit">seconden</div>
+      </div>
+    </div>
+
+    <div class="phases">
+      <div class="phase-title">Fases</div>
+      <div class="phase-row">
+        <div class="phase-lbl">Vrije val</div>
+        <div class="bar-wrap"><div class="bar" style="width:${r.ffPct}%;background:linear-gradient(90deg,#E67E22,#F5C518)"></div></div>
+        <div class="phase-t">${r.ffTime.toFixed(1)}s</div>
+      </div>
+      <div class="phase-row">
+        <div class="phase-lbl">Glijden</div>
+        <div class="bar-wrap"><div class="bar" style="width:${100-r.ffPct}%;background:linear-gradient(90deg,#3B9EFF,#1a6bcc)"></div></div>
+        <div class="phase-t">${r.glideActual.toFixed(1)}s</div>
+      </div>
+    </div>
+
+    <div class="dive-row">
+      <div class="dive-icon">📐</div>
+      <div class="dive-info">
+        <div class="dive-label">Duikhoek</div>
+        <div class="dive-val">${diveLabel}</div>
+      </div>
+      <div style="text-align:right;font-size:10px;color:var(--muted)">
+        Deploy op <strong style="color:var(--blue)">${Math.round(r.deployNorm.x*MAP_M)}m</strong><br>
+        van spring punt
+      </div>
+    </div>
+
+    <div class="tip">${advice.tip}</div>
+    <div class="physics-info">Bus 360km/h · Vrije val ~270km/h · Glider op 100m · Bus hoogte ~832m</div>
+  `;
+}
+</script>
+</body>
+</html>
