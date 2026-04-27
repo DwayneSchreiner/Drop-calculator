@@ -1,0 +1,989 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Fortnite Drop Calculator</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;600;700&family=Orbitron:wght@700;900&display=swap');
+
+:root {
+  --gold: #FFD700;
+  --blue: #00D4FF;
+  --orange: #FF6B00;
+  --dark: #07090f;
+  --panel: #0d1320;
+  --panel2: #111827;
+  --border: rgba(255,215,0,0.2);
+  --green: #39FF14;
+  --red: #FF3B3B;
+  --text: rgba(255,255,255,0.85);
+  --muted: rgba(255,255,255,0.4);
+}
+
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+
+body {
+  background: var(--dark);
+  color: var(--text);
+  font-family: 'Rajdhani', sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* HEADER */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(7,9,15,0.95);
+  backdrop-filter: blur(10px);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.logo {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 15px;
+  font-weight: 900;
+  letter-spacing: 2px;
+  background: linear-gradient(135deg, #FFD700, #FF6B00);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 0 8px rgba(255,215,0,0.3));
+}
+.header-badge {
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: var(--blue);
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+
+/* MAIN LAYOUT */
+.layout {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 49px);
+}
+
+/* MAP */
+.map-wrap {
+  position: relative;
+  flex: 1;
+  background: #0a1628;
+  overflow: hidden;
+  cursor: crosshair;
+  min-height: 300px;
+}
+
+#mapCanvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+}
+
+.map-hint {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  pointer-events: none;
+  transition: opacity 0.4s;
+}
+.map-hint.hidden { opacity: 0; }
+.hint-icon {
+  font-size: 32px;
+  margin-bottom: 8px;
+  animation: pulse 2s ease-in-out infinite;
+}
+@keyframes pulse { 0%,100%{opacity:0.6;transform:scale(1)} 50%{opacity:1;transform:scale(1.1)} }
+.hint-text {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 11px;
+  letter-spacing: 3px;
+  color: var(--gold);
+  text-transform: uppercase;
+  opacity: 0.8;
+}
+.hint-sub {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 4px;
+  letter-spacing: 1px;
+}
+
+/* MAP LEGEND */
+.map-legend {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: rgba(7,9,15,0.85);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 10px;
+  letter-spacing: 1px;
+  line-height: 1.9;
+  pointer-events: none;
+}
+.legend-row { display: flex; align-items: center; gap: 6px; color: var(--muted); }
+.legend-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+/* RESET BTN */
+.btn-reset {
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+  background: rgba(255,59,59,0.15);
+  border: 1px solid rgba(255,59,59,0.3);
+  border-radius: 6px;
+  color: var(--red);
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  padding: 6px 10px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: none;
+}
+.btn-reset.show { display: block; }
+.btn-reset:hover { background: rgba(255,59,59,0.3); }
+
+/* STEP INDICATOR */
+.step-bar {
+  display: flex;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+}
+.step {
+  flex: 1;
+  padding: 8px 4px;
+  text-align: center;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--muted);
+  transition: all 0.3s;
+  position: relative;
+}
+.step.active { color: var(--gold); }
+.step.done { color: var(--green); }
+.step-num {
+  display: block;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 14px;
+  margin-bottom: 2px;
+}
+.step.active .step-num { color: var(--gold); text-shadow: 0 0 10px rgba(255,215,0,0.5); }
+.step.done .step-num { color: var(--green); }
+.step-progress {
+  position: absolute;
+  bottom: 0; left: 0;
+  height: 2px;
+  background: var(--gold);
+  transition: width 0.4s ease;
+  width: 0;
+}
+.step.done .step-progress { width: 100%; background: var(--green); }
+.step.active .step-progress { width: 50%; }
+
+/* PANEL */
+.panel {
+  background: var(--panel);
+  border-top: 1px solid var(--border);
+  overflow-y: auto;
+  max-height: 45vh;
+}
+
+/* RESULTS */
+.results-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1px;
+  background: var(--border);
+}
+.stat-box {
+  background: var(--panel);
+  padding: 12px 14px;
+  text-align: center;
+  animation: statIn 0.3s ease forwards;
+  opacity: 0;
+}
+@keyframes statIn {
+  from { opacity:0; transform:translateY(6px); }
+  to { opacity:1; transform:translateY(0); }
+}
+.stat-box:nth-child(1) { animation-delay: 0.05s; }
+.stat-box:nth-child(2) { animation-delay: 0.1s; }
+.stat-box:nth-child(3) { animation-delay: 0.15s; }
+.stat-box:nth-child(4) { animation-delay: 0.2s; }
+.stat-box.gold { background: rgba(255,215,0,0.05); }
+.stat-label { font-size: 9px; letter-spacing: 2px; color: var(--muted); text-transform: uppercase; margin-bottom: 4px; }
+.stat-val {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--gold);
+}
+.stat-unit { font-size: 10px; color: var(--muted); margin-top: 2px; }
+
+/* TIMING BAR */
+.timing-section { padding: 12px 14px; }
+.section-title {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 9px;
+  letter-spacing: 3px;
+  color: var(--gold);
+  text-transform: uppercase;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.section-title::before { content:'▶'; font-size:7px; color:var(--blue); }
+
+.phase-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.phase-name { width: 80px; color: var(--muted); font-size: 11px; letter-spacing: 1px; }
+.phase-bar-wrap { flex: 1; height: 6px; background: rgba(255,255,255,0.06); border-radius: 3px; overflow: hidden; }
+.phase-bar { height: 100%; border-radius: 3px; transition: width 0.8s cubic-bezier(0.16,1,0.3,1); }
+.phase-time { width: 40px; text-align: right; font-family: 'Orbitron', sans-serif; font-size: 11px; color: var(--text); }
+
+/* TACTICAL */
+.tactical {
+  margin: 0 14px 12px;
+  background: rgba(0,212,255,0.04);
+  border: 1px solid rgba(0,212,255,0.15);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: rgba(255,255,255,0.7);
+}
+.tactical strong { color: var(--blue); }
+
+/* STATUS PILL */
+.status-row { padding: 10px 14px 0; }
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+.pill-safe { background: rgba(57,255,20,0.1); color: var(--green); border: 1px solid rgba(57,255,20,0.25); }
+.pill-warn { background: rgba(255,107,0,0.1); color: var(--orange); border: 1px solid rgba(255,107,0,0.25); }
+.pill-danger { background: rgba(255,59,59,0.1); color: var(--red); border: 1px solid rgba(255,59,59,0.25); }
+
+/* SETTINGS ROW */
+.settings-row {
+  display: flex;
+  gap: 8px;
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.settings-row::-webkit-scrollbar { display: none; }
+.setting-chip {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.setting-chip label {
+  font-size: 9px;
+  letter-spacing: 1.5px;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+.setting-chip select, .setting-chip input {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,215,0,0.15);
+  border-radius: 5px;
+  color: #fff;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 5px 8px;
+  outline: none;
+  min-width: 90px;
+  -webkit-appearance: none;
+}
+.setting-chip input { width: 70px; }
+.setting-chip select { padding-right: 20px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath fill='%23FFD700' d='M5 6L0 0h10z'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position: right 6px center; }
+.setting-chip select option { background: #1a2035; }
+
+/* EMPTY STATE */
+.empty-state {
+  padding: 24px 14px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 13px;
+  letter-spacing: 1px;
+}
+.empty-icon { font-size: 24px; margin-bottom: 8px; opacity: 0.5; }
+
+/* POI TOOLTIP */
+#tooltip {
+  position: absolute;
+  background: rgba(7,9,15,0.92);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 5px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: var(--gold);
+  pointer-events: none;
+  white-space: nowrap;
+  display: none;
+  z-index: 10;
+  transform: translate(-50%, -130%);
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">DROP CALC</div>
+  <div class="header-badge">Ch7 S2 · Showdown · Golden Coast</div>
+</div>
+
+<!-- STEP INDICATOR -->
+<div class="step-bar" id="stepBar">
+  <div class="step active" id="step1">
+    <span class="step-num">1</span>Set Bus Route
+    <div class="step-progress"></div>
+  </div>
+  <div class="step" id="step2">
+    <span class="step-num">2</span>Pick Drop
+    <div class="step-progress"></div>
+  </div>
+  <div class="step" id="step3">
+    <span class="step-num">3</span>Results
+    <div class="step-progress"></div>
+  </div>
+</div>
+
+<!-- MAP -->
+<div class="layout">
+  <div class="map-wrap" id="mapWrap">
+    <canvas id="mapCanvas"></canvas>
+
+    <div class="map-hint" id="mapHint">
+      <div class="hint-icon">✈️</div>
+      <div class="hint-text">Tik voor Bus Start</div>
+      <div class="hint-sub">Dan tik voor Bus Einde → Drop locatie</div>
+    </div>
+
+    <div class="map-legend">
+      <div class="legend-row"><div class="legend-dot" style="background:#FFD700"></div>Bus Route</div>
+      <div class="legend-row"><div class="legend-dot" style="background:#00D4FF"></div>Drop Point</div>
+      <div class="legend-row"><div class="legend-dot" style="background:#00D4FF"></div>❄️ Frigid Fortress</div>
+      <div class="legend-row"><div class="legend-dot" style="background:#39FF14"></div>🛡️ New Sanctuary</div>
+      <div class="legend-row"><div class="legend-dot" style="background:#AA44FF"></div>🌑 Dark Dominion</div>
+      <div class="legend-row"><div class="legend-dot" style="background:#FF8040"></div>Other POI</div>
+    </div>
+
+    <button class="btn-reset" id="btnReset" onclick="resetAll()">↺ Reset</button>
+    <div id="tooltip"></div>
+  </div>
+
+  <!-- SETTINGS + RESULTS PANEL -->
+  <div class="panel" id="panel">
+    <div class="settings-row">
+      <div class="setting-chip">
+        <label>Bus Hoogte</label>
+        <select id="altSelect" onchange="recalc()">
+          <option value="800">800m — Laag</option>
+          <option value="1000" selected>1000m — Normaal</option>
+          <option value="1200">1200m — Hoog</option>
+        </select>
+      </div>
+      <div class="setting-chip">
+        <label>Drop Stijl</label>
+        <select id="styleSelect" onchange="recalc()">
+          <option value="straight">Recht Naar Beneden</option>
+          <option value="diagonal" selected>Diagonaal Glide</option>
+          <option value="max">Max Afstand</option>
+        </select>
+      </div>
+      <div class="setting-chip">
+        <label>Spelers</label>
+        <select id="playersSelect" onchange="recalc()">
+          <option value="solo" selected>Solo</option>
+          <option value="duo">Duo</option>
+          <option value="squad">Squad</option>
+        </select>
+      </div>
+    </div>
+
+    <div id="panelContent">
+      <div class="empty-state">
+        <div class="empty-icon">🗺️</div>
+        Tik op de map om je bus route in te stellen
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── POIs — Fortnite Chapter 7 Season 2 "SHOWDOWN" (Golden Coast) ──
+// Normalized 0-1 coords based on known map layout
+const POIS = [
+  // NEW this season
+  { name: "Frigid Fortress",  x: 0.25, y: 0.14, hot: true,  type: 'ice'  },
+  { name: "New Sanctuary",    x: 0.70, y: 0.72, hot: true,  type: 'seven'},
+  { name: "Dark Dominion",    x: 0.55, y: 0.55, hot: true,  type: 'dark' },
+  { name: "Squibbly Shores",  x: 0.18, y: 0.52, hot: false, type: 'zero' },
+  // Returning Ch7S1 POIs
+  { name: "Wonkeeland",       x: 0.42, y: 0.28, hot: false, type: 'normal'},
+  { name: "Battlewood Blvd",  x: 0.60, y: 0.22, hot: false, type: 'normal'},
+  { name: "Kappa Factory",    x: 0.35, y: 0.48, hot: false, type: 'normal'},
+  { name: "Thousand Faces",   x: 0.78, y: 0.38, hot: false, type: 'normal'},
+  { name: "Shogun's Solitude",x: 0.72, y: 0.18, hot: false, type: 'normal'},
+  { name: "Foxy Floodgate",   x: 0.20, y: 0.72, hot: false, type: 'normal'},
+  { name: "Painted Palms",    x: 0.82, y: 0.60, hot: false, type: 'normal'},
+  { name: "Lethal Labs",      x: 0.50, y: 0.78, hot: false, type: 'normal'},
+  { name: "Shining Span",     x: 0.42, y: 0.62, hot: false, type: 'normal'},
+  { name: "Cliffside Court",  x: 0.14, y: 0.32, hot: false, type: 'normal'},
+];
+
+const BUS_SPEED_MS = 36; // ~130 km/h in m/s
+const MAP_REAL_SIZE = 7200; // meters
+
+let state = { phase: 0, busA: null, busB: null, drop: null };
+let canvasW = 0, canvasH = 0;
+
+const canvas = document.getElementById('mapCanvas');
+const ctx = canvas.getContext('2d');
+const mapWrap = document.getElementById('mapWrap');
+const hint = document.getElementById('mapHint');
+const tooltip = document.getElementById('tooltip');
+
+// ── RESIZE ──
+let animating = false;
+function startAnim() {
+  if (animating) return;
+  animating = true;
+  (function loop(){ animFrame++; draw(); if(animating) requestAnimationFrame(loop); })();
+}
+function resize() {
+  canvasW = canvas.width = mapWrap.clientWidth;
+  canvasH = canvas.height = mapWrap.clientHeight;
+  draw();
+}
+window.addEventListener('resize', resize);
+resize();
+
+// ── COORDINATE HELPERS ──
+function toCanvas(nx, ny) {
+  return { x: nx * canvasW, y: ny * canvasH };
+}
+function toNorm(cx, cy) {
+  return { x: cx / canvasW, y: cy / canvasH };
+}
+function dist(a, b) {
+  return Math.sqrt((a.x-b.x)**2 + (a.y-b.y)**2);
+}
+function normDist(a, b) {
+  // Real-world meters between two normalized points
+  return Math.sqrt(((a.x-b.x)*MAP_REAL_SIZE)**2 + ((a.y-b.y)*MAP_REAL_SIZE)**2);
+}
+
+// Point-to-line-segment distance (normalized)
+function ptLineDistNorm(p, a, b) {
+  const dx = b.x - a.x, dy = b.y - a.y;
+  const lenSq = dx*dx + dy*dy;
+  if (lenSq === 0) return dist(p, a);
+  let t = ((p.x-a.x)*dx + (p.y-a.y)*dy) / lenSq;
+  t = Math.max(0, Math.min(1, t));
+  return Math.sqrt((p.x - (a.x + t*dx))**2 + (p.y - (a.y + t*dy))**2);
+}
+
+// Project point onto line segment, return t (0-1) along segment
+function projectOntoLine(p, a, b) {
+  const dx = b.x - a.x, dy = b.y - a.y;
+  const lenSq = dx*dx + dy*dy;
+  if (lenSq === 0) return 0;
+  return Math.max(0, Math.min(1, ((p.x-a.x)*dx + (p.y-a.y)*dy) / lenSq));
+}
+
+// ── DRAW ──
+let animFrame = 0;
+
+function draw() {
+  ctx.clearRect(0, 0, canvasW, canvasH);
+
+  // Season watermark
+  ctx.save();
+  ctx.font = 'bold 10px Orbitron, sans-serif';
+  ctx.fillStyle = 'rgba(255,215,0,0.08)';
+  ctx.textAlign = 'center';
+  ctx.translate(canvasW/2, canvasH/2);
+  ctx.rotate(-Math.PI/6);
+  ctx.fillText('CHAPTER 7 · SEASON 2 · SHOWDOWN', 0, 0);
+  ctx.restore();
+
+  // Terrain background — stylized biomes
+  drawTerrain();
+
+  // Grid overlay
+  ctx.strokeStyle = 'rgba(255,255,255,0.025)';
+  ctx.lineWidth = 1;
+  const gridN = 10;
+  for (let i = 0; i <= gridN; i++) {
+    ctx.beginPath(); ctx.moveTo(i/gridN*canvasW, 0); ctx.lineTo(i/gridN*canvasW, canvasH); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0, i/gridN*canvasH); ctx.lineTo(canvasW, i/gridN*canvasH); ctx.stroke();
+  }
+
+  // Draw max-reach ring around drop (if bus set)
+  if (state.busA && state.busB && state.drop) {
+    const alt = parseInt(document.getElementById('altSelect').value);
+    const style = document.getElementById('styleSelect').value;
+    const freefallAlt = alt * 0.55;
+    const freefallTime = Math.sqrt((2*freefallAlt)/9.8);
+    const glideAlt = alt - freefallAlt;
+    const glideHorizRate = style === 'max' ? 32 : style === 'straight' ? 5 : 22;
+    const glideTime = glideAlt / 10;
+    const maxReachM = freefallTime * 15 + glideTime * glideHorizRate;
+    const maxReachNorm = maxReachM / MAP_REAL_SIZE;
+    const d = toCanvas(state.drop.x, state.drop.y);
+    const ringR = maxReachNorm * canvasW;
+    const grad = ctx.createRadialGradient(d.x, d.y, ringR*0.85, d.x, d.y, ringR);
+    grad.addColorStop(0, 'rgba(0,212,255,0.06)');
+    grad.addColorStop(1, 'rgba(0,212,255,0)');
+    ctx.beginPath(); ctx.arc(d.x, d.y, ringR, 0, Math.PI*2);
+    ctx.fillStyle = grad; ctx.fill();
+    ctx.beginPath(); ctx.arc(d.x, d.y, ringR, 0, Math.PI*2);
+    ctx.strokeStyle = 'rgba(0,212,255,0.3)';
+    ctx.setLineDash([5,5]); ctx.lineWidth = 1.5; ctx.stroke(); ctx.setLineDash([]);
+  }
+
+  // Draw POIs
+  POIS.forEach(poi => {
+    const c = toCanvas(poi.x, poi.y);
+    const col = poiColor(poi.type, poi.hot);
+    // Pulse ring for hot POIs
+    if (poi.hot) {
+      const pulse = 1 + 0.3 * Math.sin(animFrame * 0.04);
+      ctx.beginPath();
+      ctx.arc(c.x, c.y, 12 * pulse, 0, Math.PI*2);
+      ctx.strokeStyle = col.replace(')', ',0.18)').replace('rgb', 'rgba');
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    }
+    ctx.beginPath();
+    ctx.arc(c.x, c.y, poi.hot ? 5.5 : 3.5, 0, Math.PI*2);
+    ctx.fillStyle = col;
+    ctx.fill();
+    // Label
+    ctx.fillStyle = poi.hot ? col : 'rgba(255,255,255,0.32)';
+    ctx.font = `${poi.hot ? 'bold ' : ''}8px Rajdhani, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.fillText(poi.name, c.x, c.y - (poi.hot ? 11 : 9));
+  });
+
+  // Draw bus route
+  if (state.busA) {
+    const a = toCanvas(state.busA.x, state.busA.y);
+
+    if (state.busB) {
+      const b = toCanvas(state.busB.x, state.busB.y);
+      const angle = Math.atan2(b.y - a.y, b.x - a.x);
+      const totalLen = Math.sqrt((b.x-a.x)**2+(b.y-a.y)**2);
+
+      // Animated bus icon along route
+      const busT = ((animFrame * 0.004) % 1);
+      const busX = a.x + busT*(b.x-a.x);
+      const busY = a.y + busT*(b.y-a.y);
+
+      // Glow trail
+      const grad = ctx.createLinearGradient(a.x, a.y, b.x, b.y);
+      grad.addColorStop(0, 'rgba(255,215,0,0.0)');
+      grad.addColorStop(Math.max(0, busT-0.1), 'rgba(255,215,0,0.0)');
+      grad.addColorStop(busT, 'rgba(255,215,0,0.4)');
+      grad.addColorStop(1, 'rgba(255,215,0,0.1)');
+      ctx.setLineDash([8, 5]);
+      ctx.strokeStyle = grad;
+      ctx.lineWidth = 2.5;
+      ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Arrow at end
+      ctx.save();
+      ctx.translate(b.x, b.y);
+      ctx.rotate(angle);
+      ctx.fillStyle = '#FFD700';
+      ctx.globalAlpha = 0.8;
+      ctx.beginPath(); ctx.moveTo(10, 0); ctx.lineTo(-5, -5); ctx.lineTo(-5, 5); ctx.closePath(); ctx.fill();
+      ctx.restore();
+
+      // Animated bus (✈)
+      ctx.save();
+      ctx.translate(busX, busY);
+      ctx.rotate(angle);
+      ctx.font = '14px serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.shadowColor = 'rgba(255,215,0,0.8)';
+      ctx.shadowBlur = 8;
+      ctx.fillText('✈', 0, 0);
+      ctx.restore();
+
+      // Drop point perpendicular line
+      if (state.drop) {
+        const d = toCanvas(state.drop.x, state.drop.y);
+        const t = projectOntoLine(state.drop, state.busA, state.busB);
+        const jumpNorm = { x: state.busA.x + t*(state.busB.x-state.busA.x), y: state.busA.y + t*(state.busB.y-state.busA.y) };
+        const jump = toCanvas(jumpNorm.x, jumpNorm.y);
+
+        // Curved glide arc
+        const midX = (jump.x + d.x) / 2 - (d.y - jump.y) * 0.2;
+        const midY = (jump.y + d.y) / 2 + Math.abs(d.x - jump.x) * 0.15;
+        ctx.beginPath();
+        ctx.moveTo(jump.x, jump.y);
+        ctx.quadraticCurveTo(midX, midY, d.x, d.y);
+        ctx.strokeStyle = 'rgba(0,212,255,0.7)';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([5, 4]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Distance label on arc
+        const labelX = midX, labelY = midY - 8;
+        const horizDistM = normDist(jumpNorm, state.drop);
+        ctx.fillStyle = 'rgba(0,212,255,0.8)';
+        ctx.font = 'bold 9px Rajdhani, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(Math.round(horizDistM) + 'm', labelX, labelY);
+
+        // Jump point on route (animated pulse)
+        const jumpPulse = 1 + 0.25 * Math.sin(animFrame * 0.08);
+        ctx.beginPath();
+        ctx.arc(jump.x, jump.y, 7 * jumpPulse, 0, Math.PI*2);
+        ctx.fillStyle = 'rgba(255,215,0,0.15)';
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(jump.x, jump.y, 5, 0, Math.PI*2);
+        ctx.fillStyle = '#FFD700';
+        ctx.fill();
+        ctx.fillStyle = '#000';
+        ctx.font = 'bold 7px Orbitron, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('J', jump.x, jump.y);
+        ctx.textBaseline = 'alphabetic';
+
+        // Drop target — crosshair style
+        const r = 10;
+        ctx.strokeStyle = '#00D4FF';
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(d.x, d.y, r, 0, Math.PI*2); ctx.stroke();
+        ctx.strokeStyle = 'rgba(0,212,255,0.4)';
+        ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(d.x-r-4, d.y); ctx.lineTo(d.x+r+4, d.y); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(d.x, d.y-r-4); ctx.lineTo(d.x, d.y+r+4); ctx.stroke();
+        ctx.beginPath(); ctx.arc(d.x, d.y, 3, 0, Math.PI*2);
+        ctx.fillStyle = '#00D4FF'; ctx.fill();
+
+        // Nearest POI highlight
+        let nearest = null, nearestDist = 9999;
+        POIS.forEach(poi => { const pd = normDist(state.drop, poi); if(pd < nearestDist){ nearestDist=pd; nearest=poi; } });
+        if (nearest && nearestDist < MAP_REAL_SIZE * 0.12) {
+          const pc = toCanvas(nearest.x, nearest.y);
+          ctx.beginPath();
+          ctx.moveTo(d.x, d.y); ctx.lineTo(pc.x, pc.y);
+          ctx.strokeStyle = 'rgba(255,107,0,0.3)';
+          ctx.lineWidth = 1; ctx.setLineDash([3,4]); ctx.stroke(); ctx.setLineDash([]);
+        }
+      }
+
+      // Bus endpoint dot
+      ctx.beginPath();
+      ctx.arc(b.x, b.y, 4, 0, Math.PI*2);
+      ctx.fillStyle = 'rgba(255,215,0,0.5)';
+      ctx.fill();
+    }
+
+    // Bus start
+    if (!state.busB) {
+      ctx.font = '16px serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('✈', a.x, a.y + 5);
+    }
+  }
+}
+
+function drawTerrain() {
+  // Golden Coast — Chapter 7 Season 2 biomes
+  const zones = [
+    // Snow biome (north, Frigid Fortress area)
+    { x:0.25, y:0.12, rx:0.22, ry:0.14, color:'rgba(160,210,240,0.09)' },
+    // Desert (east)
+    { x:0.82, y:0.55, rx:0.14, ry:0.22, color:'rgba(200,160,70,0.07)' },
+    // Zero Point shard water (center-west)
+    { x:0.22, y:0.52, rx:0.06, ry:0.05, color:'rgba(120,60,220,0.2)' },
+    // Dark Dominion corruption (center)
+    { x:0.55, y:0.55, rx:0.09, ry:0.08, color:'rgba(60,0,80,0.15)' },
+    // New Sanctuary (SE)
+    { x:0.70, y:0.72, rx:0.08, ry:0.07, color:'rgba(0,200,120,0.07)' },
+    // Coast water (west edge)
+    { x:0.04, y:0.50, rx:0.06, ry:0.35, color:'rgba(30,80,160,0.12)' },
+    // Forest patches
+    { x:0.60, y:0.38, rx:0.12, ry:0.10, color:'rgba(40,90,40,0.06)' },
+  ];
+  zones.forEach(z => {
+    const cx = z.x * canvasW, cy = z.y * canvasH;
+    const rx = z.rx * canvasW, ry = z.ry * canvasH;
+    ctx.save();
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI*2);
+    ctx.fillStyle = z.color;
+    ctx.fill();
+    ctx.restore();
+  });
+}
+
+function poiColor(type, hot) {
+  if (!hot) return 'rgba(255,180,80,0.5)';
+  switch(type) {
+    case 'ice':    return '#00D4FF';
+    case 'seven':  return '#39FF14';
+    case 'dark':   return '#AA44FF';
+    case 'zero':   return '#8844FF';
+    default:       return '#FF6B00';
+  }
+}
+
+// ── INPUT ──
+function getEventPos(e) {
+  const rect = canvas.getBoundingClientRect();
+  if (e.touches) {
+    return { x: e.touches[0].clientX - rect.left, y: e.touches[0].clientY - rect.top };
+  }
+  return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+}
+
+function handleTap(e) {
+  e.preventDefault();
+  const pos = getEventPos(e);
+  const norm = toNorm(pos.x, pos.y);
+
+  if (state.phase === 0) {
+    state.busA = norm;
+    state.phase = 1;
+    hint.classList.add('hidden');
+    startAnim();
+    updateSteps();
+    draw();
+  } else if (state.phase === 1) {
+    if (dist(toCanvas(norm.x, norm.y), toCanvas(state.busA.x, state.busA.y)) < 20) return;
+    state.busB = norm;
+    state.phase = 2;
+    updateSteps();
+    draw();
+  } else if (state.phase === 2) {
+    state.drop = norm;
+    state.phase = 3;
+    document.getElementById('btnReset').classList.add('show');
+    updateSteps();
+    draw();
+    recalc();
+  } else if (state.phase === 3) {
+    // Move drop point
+    state.drop = norm;
+    draw();
+    recalc();
+  }
+}
+
+// Hover: show POI tooltip
+canvas.addEventListener('mousemove', e => {
+  const rect = canvas.getBoundingClientRect();
+  const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+  const norm = toNorm(mx, my);
+  let found = null;
+  for (const poi of POIS) {
+    const c = toCanvas(poi.x, poi.y);
+    if (Math.sqrt((mx-c.x)**2+(my-c.y)**2) < 14) { found = poi; break; }
+  }
+  if (found) {
+    tooltip.style.display = 'block';
+    tooltip.style.left = mx + 'px';
+    tooltip.style.top = my + 'px';
+    tooltip.textContent = found.name + (found.hot ? ' 🔥' : '');
+  } else {
+    tooltip.style.display = 'none';
+  }
+});
+
+canvas.addEventListener('click', handleTap);
+canvas.addEventListener('touchend', handleTap);
+
+// ── STEPS ──
+function updateSteps() {
+  const s1 = document.getElementById('step1');
+  const s2 = document.getElementById('step2');
+  const s3 = document.getElementById('step3');
+  s1.className = 'step' + (state.phase === 0 ? ' active' : ' done');
+  s2.className = 'step' + (state.phase === 1 ? ' active' : state.phase >= 2 ? ' done' : '');
+  s3.className = 'step' + (state.phase === 2 ? ' active' : state.phase >= 3 ? ' done' : '');
+}
+
+// ── RESET ──
+function resetAll() {
+  state = { phase: 0, busA: null, busB: null, drop: null };
+  hint.classList.remove('hidden');
+  document.getElementById('btnReset').classList.remove('show');
+  document.getElementById('panelContent').innerHTML = `<div class="empty-state"><div class="empty-icon">🗺️</div>Tik op de map om je bus route in te stellen</div>`;
+  updateSteps();
+  draw();
+}
+
+// ── CALCULATE ──
+function recalc() {
+  if (!state.busA || !state.busB || !state.drop) return;
+
+  const altitude = parseInt(document.getElementById('altSelect').value);
+  const dropStyle = document.getElementById('styleSelect').value;
+  const players = document.getElementById('playersSelect').value;
+
+  // Real-world distances
+  const busLengthM = normDist(state.busA, state.busB);
+
+  // Jump point on bus route
+  const t = projectOntoLine(state.drop, state.busA, state.busB);
+  const jumpNorm = {
+    x: state.busA.x + t*(state.busB.x - state.busA.x),
+    y: state.busA.y + t*(state.busB.y - state.busA.y)
+  };
+
+  // Horizontal distance from jump to drop
+  const horizDistM = normDist(jumpNorm, state.drop);
+
+  // Bus timing: how far along the route is the jump point
+  const distToJumpM = t * busLengthM;
+  const busTimeSec = distToJumpM / BUS_SPEED_MS;
+
+  // Drop physics (Fortnite-approximate)
+  // Freefall: ~75 m/s terminal velocity, takes ~3s to reach terminal
+  const freefallAlt = altitude * 0.55;
+  const freefallTime = Math.sqrt((2 * freefallAlt) / 9.8);
+  const freefallHoriz = freefallTime * (dropStyle === 'straight' ? 0 : 15); // horizontal during freefall
+
+  // Glide phase
+  const glideAlt = altitude - freefallAlt;
+  const glideDescRate = 10; // m/s
+  const glideHorizRate = dropStyle === 'max' ? 32 : dropStyle === 'straight' ? 5 : 22;
+  const glideTime = glideAlt / glideDescRate;
+  const glideHoriz = glideTime * glideHorizRate;
+
+  const totalDropTime = freefallTime + glideTime;
+  const maxReach = freefallHoriz + glideHoriz;
+
+  // Can we reach the drop?
+  const canReach = horizDistM <= maxReach * 1.1;
+
+  // Jump timing (seconds before bus passes drop point overhead)
+  const jumpTiming = Math.max(0, (horizDistM - freefallHoriz) / glideHorizRate);
+  // In terms of bus position: jump when bus is jumpTiming*BUS_SPEED_MS meters before jump point
+  const jumpEarlyM = BUS_SPEED_MS * jumpTiming * 0.5;
+  const jumpSecondsEarly = jumpEarlyM / BUS_SPEED_MS;
+
+  // Landing speed
+  const landSpeedKMH = Math.round((glideHorizRate * 1.2) * 3.6);
+
+  // Nearest POI
+  let nearest = null, nearestDist = 9999;
+  POIS.forEach(poi => {
+    const d = normDist(state.drop, poi) ;
+    if (d < nearestDist) { nearestDist = d; nearest = poi; }
+  });
+
+  // Competition
+  const isHot = nearest && nearestDist < 350 && nearest.hot;
+  const isMid = nearest && nearestDist < 600;
+  const dropType = isHot ? 'hot' : isMid ? 'mid' : 'cold';
+
+  // Phase percentages
+  const ffPct = Math.round((freefallTime / totalDropTime) * 100);
+  const glPct = 100 - ffPct;
+
+  // Tactical advice
+  const advice = {
+    hot: { pill: 'danger', label: '🔥 HOT DROP', tip: `<strong>Harde landing!</strong> Duik steil, pak het eerste wapen binnen 5 seconden. Met ${players === 'squad' ? 'squad: splits en dek alle verdiepingen' : 'solo: pak hoge grond direct na landing'}.` },
+    mid: { pill: 'warn',   label: '⚡ MID DROP',  tip: `<strong>Gemiddelde competitie.</strong> Ga diagonaal naar het beste lootgebouw. Je hebt ~10s voor de eerste gevechten beginnen.` },
+    cold: { pill: 'safe',  label: '✅ COLD DROP', tip: `<strong>Rustige landing.</strong> Max glide afstand. Land op daken eerst. Je hebt 30-60 seconden vrij loot voordat rotaties aankomen.` },
+  }[dropType];
+
+  // Render
+  document.getElementById('panelContent').innerHTML = `
+    <div class="status-row">
+      <span class="pill pill-${advice.pill}">${advice.label}</span>
+      ${nearest ? `<span style="font-size:11px;color:var(--muted);margin-left:8px;">Dichtstbijzijnde: ${nearest.name} (${Math.round(nearestDist)}m)</span>` : ''}
+    </div>
+
+    <div class="results-grid">
+      <div class="stat-box gold">
+        <div class="stat-label">Spring na</div>
+        <div class="stat-val">${busTimeSec.toFixed(0)}</div>
+        <div class="stat-unit">sec na vertrek bus</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">Totale Val</div>
+        <div class="stat-val">${totalDropTime.toFixed(1)}</div>
+        <div class="stat-unit">seconden</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">Horizontale Afstand</div>
+        <div class="stat-val">${Math.round(horizDistM)}</div>
+        <div class="stat-unit">meter van bus</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">Max Bereik</div>
+        <div class="stat-val" style="color:${canReach?'var(--green)':'var(--red)'}">${Math.round(maxReach)}</div>
+        <div class="stat-unit">${canReach ? '✓ bereikbaar' : '✗ te ver!'}</div>
+      </div>
+    </div>
+
+    <div class="timing-section">
+      <div class="section-title">Fases</div>
+      <div class="phase-row">
+        <div class="phase-name">Vrije val</div>
+        <div class="phase-bar-wrap"><div class="phase-bar" style="width:${ffPct}%;background:linear-gradient(90deg,#FF6B00,#FFD700)"></div></div>
+        <div class="phase-time">${freefallTime.toFixed(1)}s</div>
+      </div>
+      <div class="phase-row">
+        <div class="phase-name">Glijden</div>
+        <div class="phase-bar-wrap"><div class="phase-bar" style="width:${glPct}%;background:linear-gradient(90deg,#00D4FF,#0066FF)"></div></div>
+        <div class="phase-time">${glideTime.toFixed(1)}s</div>
+      </div>
+    </div>
+
+    <div class="tactical">${advice.tip}</div>
+  `;
+}
+</script>
+</body>
+</html>
